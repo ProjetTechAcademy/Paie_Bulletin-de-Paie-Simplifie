@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord Paie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-button.active {
+            background-color: #fff;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .payslip-section {
+            border-bottom: 1px dashed #d1d5db;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .payslip-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .payslip-grid-header {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b7280;
+            padding-bottom: 0.5rem;
+        }
+        .payslip-grid-item {
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+        .payslip-title {
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .payslip-value {
+            text-align: right;
+        }
+        .correction-section {
+            display: none;
+            margin-top: 2rem;
+        }
+        .correction-section.active {
+            display: block;
+        }
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .collapsible-content {
+            display: none;
+            padding: 1rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+        }
+        .collapsible-header.active + .collapsible-content {
+            display: block;
+        }
+        /* Custom colors for highlights */
+        .color-gross { background-color: #d1fae5; }
+        .color-social { background-color: #c7d2fe; }
+        .color-net { background-color: #fce7f3; }
+        .color-impot { background-color: #fee2e2; }
+        .color-net-imposable { background-color: #fef3c7; }
+        .color-deduction { background-color: #e0f2fe; }
+        .color-contrib { background-color: #dbeafe; }
+        
+        .bg-blue-200-light { background-color: #dbeafe; }
+        .bg-gray-300-light { background-color: #e5e7eb; }
+        
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-8">
+    <div class="container bg-white rounded-xl shadow-lg p-6 sm:p-8">
+        <h1 class="text-3xl font-bold mb-6 text-center text-blue-600">Bulletin de Paie Simplifié</h1>
+        <div class="flex border-b border-gray-200 mb-6">
+            <button class="tab-button flex-1 py-3 text-center font-medium text-gray-600 rounded-t-lg transition-colors duration-200 hover:bg-gray-50 active" onclick="showTab('payslip')">Bulletin de Paie</button>
+            <button class="tab-button flex-1 py-3 text-center font-medium text-gray-600 rounded-t-lg transition-colors duration-200 hover:bg-gray-50" onclick="showTab('calculator')">Calculateur</button>
+            <button class="tab-button flex-1 py-3 text-center font-medium text-gray-600 rounded-t-lg transition-colors duration-200 hover:bg-gray-50" onclick="showTab('exercises')">Exercices</button>
+        </div>
+
+        <!-- Bulletin de Paie Tab -->
+        <div id="payslip" class="tab-content active">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-500">Exemple de Bulletin de Paie</h2>
+            <div id="payslip-container" class="border p-4 rounded-lg bg-gray-50">
+                <!-- Content will be generated here by JavaScript -->
+            </div>
+            
+            <div id="correction-area" class="correction-section">
+                <h3 class="text-xl font-bold text-gray-700 mt-6 mb-4">Correction Détaillée</h3>
+                <div id="correction-content" class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <!-- Correction will be generated here -->
+                </div>
+            </div>
+
+            <p class="mt-4 text-sm text-gray-500 text-center">
+                Veuillez conserver ce bulletin sans limitation de durée.
+            </p>
+        </div>
+
+        <!-- Calculateur Tab -->
+        <div id="calculator" class="tab-content">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-500">Calculateur de Salaire</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex flex-col">
+                    <label for="hours" class="mb-2 font-medium text-gray-700">Heures de travail (normales) :</label>
+                    <input type="number" id="hours" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light">
+                </div>
+                <div class="flex flex-col">
+                    <label for="hourlyRate" class="mb-2 font-medium text-gray-700">Taux horaire (€) :</label>
+                    <input type="number" id="hourlyRate" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="12.50">
+                </div>
+                <div class="flex flex-col">
+                    <label for="overtimeHours" class="mb-2 font-medium text-gray-700">Heures supplémentaires (majorées) :</label>
+                    <input type="number" id="overtimeHours" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="overtimeRate" class="mb-2 font-medium text-gray-700">Majoration heures supp. (%) :</label>
+                    <input type="number" id="overtimeRate" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-300-light" value="25" disabled>
+                </div>
+                <div class="flex flex-col">
+                    <label for="additionalHours" class="mb-2 font-medium text-gray-700">Heures complémentaires (temps partiel) :</label>
+                    <input type="number" id="additionalHours" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                 <div class="flex flex-col">
+                    <label for="additionalRate" class="mb-2 font-medium text-gray-700">Majoration heures comp. (%) :</label>
+                    <input type="number" id="additionalRate" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-300-light" value="10" disabled>
+                </div>
+                <div class="flex flex-col">
+                    <label for="primes" class="mb-2 font-medium text-gray-700">Primes (€) :</label>
+                    <input type="number" id="primes" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="an_vehicle" class="mb-2 font-medium text-gray-700">Avantage en nature (véhicule) :</label>
+                    <input type="number" id="an_vehicle" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="an_food" class="mb-2 font-medium text-gray-700">Avantage en nature (repas) :</label>
+                    <input type="number" id="an_food" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="reimbursement" class="mb-2 font-medium text-gray-700">Remboursement frais pro (€) :</label>
+                    <input type="number" id="reimbursement" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="acompte" class="mb-2 font-medium text-gray-700">Acompte / Saisie sur salaire (€) :</label>
+                    <input type="number" id="acompte" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="taxRate" class="mb-2 font-medium text-gray-700">Taux Prélèvement à la Source (%) :</label>
+                    <input type="number" id="taxRate" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="4.05">
+                </div>
+                <div class="flex flex-col">
+                    <label for="status" class="mb-2 font-medium text-gray-700">Statut :</label>
+                    <select id="status" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light">
+                        <option value="non-cadre">Non-cadre</option>
+                        <option value="cadre">Cadre</option>
+                    </select>
+                </div>
+                <div class="flex flex-col">
+                    <label for="pmss" class="mb-2 font-medium text-gray-700">PMSS (€) :</label>
+                    <input type="number" id="pmss" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="3925.00">
+                </div>
+                 <div class="flex flex-col">
+                    <label for="pmss_prorata" class="mb-2 font-medium text-gray-700">PSS Proratisé (€) :</label>
+                    <input type="number" id="pmss_prorata" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="0">
+                </div>
+                <div class="flex flex-col">
+                    <label for="days_present" class="mb-2 font-medium text-gray-700">Jours de présence :</label>
+                    <input type="number" id="days_present" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="30">
+                </div>
+            </div>
+            <div class="mt-6 text-center">
+                <button id="calculateButton" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-200">Calculer le bulletin</button>
+            </div>
+            <div id="calculator-result" class="mt-8">
+                <!-- Results will be displayed here -->
+            </div>
+        </div>
+
+        <!-- Exercices Tab -->
+        <div id="exercises" class="tab-content">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-500">Exercices</h2>
+            <p class="text-gray-600 mb-4">Cliquez sur un exercice pour en voir le bulletin de paie et la correction détaillée.</p>
+            
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 1 : M. TROPIN (Cadre)</h3>
+                <p class="text-blue-600 text-sm">Entreprise QRANSPAC (22 salariés, taux AT 1.80%, VM 2%). M. TROPIN est cadre, salaire horaire 30 €, 5 heures supplémentaires. Taux PAS 13.50%. Mutuelle sur le PMSS 2% (50%/50%), prévoyance complémentaire sur TB 0.86% salariale / 1% patronale.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="tropin">Résoudre</button>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 2 : Mme QAMATRA (Non-cadre)</h3>
+                <p class="text-blue-600 text-sm">Mme QAMATRA est non-cadre à temps plein (151.67h), salaire horaire 12.50 €. Taux PAS 4.05%. Taux d'entreprise comme l'exercice 1.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="qamatra">Résoudre</button>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 3 : M. CHARTIER (Non-cadre)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (85 salariés, AT 2%, VM 0.65%). M. CHARTIER est non-cadre, salaire de base 1900 €, 350 km véhicule personnel 8cv gazole. Acompte de 200 €. Taux PAS 4.5%. Prévoyance sur brut 0.50% salariale/1.50% patronale. Mutuelle sur PMSS 0.75% salariale/0.75% patronale.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="chartier">Résoudre</button>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 4 : M. CABOS (Non-cadre)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (6 salariés, AT 2%, VM non applicable). M. CABOS est non-cadre, salaire de base 2000 €, 15h supplémentaires majorées 25%. Taux PAS 4.5%. Saisie sur salaire 1000 € (dette fiscale). Prévoyance sur brut 0.50% salariale/1.50% patronale. Mutuelle sur PMSS 0.75% salariale/0.75% patronale.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="cabos">Résoudre</button>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 5 : M. CRYPTAIS (Non-cadre)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (11 salariés, AT 2%, VM 2%). M. CRYPTAIS est non-cadre, salaire de base 3500 €, avantage en nature véhicule 175 €, 15h supplémentaires majorées 25%. Taux PAS 8%. Mutuelle salariale 40 € / patronale 60 €.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="cryptais">Résoudre</button>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 6 : Mme COCAGNAC (Non-cadre temps partiel)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (11 salariés, AT 2%, VM 0.65%). Mme COCAGNAC est non-cadre à temps partiel (28h/sem), salaire de base 1550 €, 8h complémentaires majorées 10%. Taux PAS 4%. Prévoyance sur brut 0.50% salariale/1.50% patronale. Mutuelle sur PMSS 0.75% salariale/0.75% patronale.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="cocagnac">Résoudre</button>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 7 : M. CACHIN (Non-cadre temps partiel)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (22 salariés, AT 1.50%, VM 2%). M. CACHIN est non-cadre à temps partiel (21h/sem), salaire horaire 12 €. Taux PAS 4%. Mutuelle sur PMSS 1.50% salariale/1.50% patronale. Heures complémentaires majorées de 10% (6.2h) et 25% (1.3h).</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="cachin">Résoudre</button>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 8 : Mme CHANTRE (Cadre)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (4 salariés, AT 2%). Mme CHANTRE est cadre, salaire de base 5700 €. Taux PAS 9%. Mutuelle salariale 40 € / patronale 60 €.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="chantre">Résoudre</button>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 9 : M. TAMBOURIN (Cadre)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (4 salariés, AT 2%). M. TAMBOURIN est cadre, salaire de base 3300 €, prime 300 €. Taux PAS 8%. Mutuelle salariale 40 € / patronale 60 €.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="tambourin">Résoudre</button>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-blue-700 mb-2">Exercice 10 : M. THILLOU (Cadre temps partiel)</h3>
+                <p class="text-blue-600 text-sm">Entreprise (11 salariés, AT 2%, VM 1.50%). M. THILLOU est cadre à temps partiel (21h/sem), salaire horaire 15 €. Rémunération de référence 16380€. Semaines 2, 3, 4 : absences. Semaine 5 : 4h complémentaires. Taux PAS 5%. Mutuelle salariale 30€ / patronale 40€.</p>
+                <div class="text-center mt-4">
+                    <button class="exercise-button px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200" data-exercise="thillou">Résoudre</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.tab-button');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            window.showTab = function(id) {
+                contents.forEach(content => {
+                    content.classList.remove('active');
+                });
+                tabs.forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.getElementById(id).classList.add('active');
+                document.querySelector(`[onclick="showTab('${id}')"]`).classList.add('active');
+                
+                document.getElementById('correction-area').classList.remove('active');
+            };
+
+            const PMSS = 3925.00;
+            const SMIC_H = 11.65;
+            const H_NORMAL = 151.67;
+            const SMIC_BRUT_MONTH = H_NORMAL * SMIC_H;
+
+            function formatEuro(num) {
+                return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(num);
+            }
+
+            function formatPercent(num) {
+                return new Intl.NumberFormat('fr-FR', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+            }
+            
+            function isObject(item) {
+                return (item && typeof item === 'object' && !Array.isArray(item));
+            }
+            
+            function mergeDeep(target, ...sources) {
+                if (!sources.length) return target;
+                const source = sources.shift();
+
+                if (isObject(target) && isObject(source)) {
+                    for (const key in source) {
+                        if (isObject(source[key])) {
+                            if (!target[key]) Object.assign(target, { [key]: {} });
+                            mergeDeep(target[key], source[key]);
+                        } else {
+                            Object.assign(target, { [key]: source[key] });
+                        }
+                    }
+                }
+                return mergeDeep(target, ...sources);
+            }
+
+            function calculatePayslip(data) {
+                const { hours, hourlyRate, overtimeHours, additionalHours, taxRate, status, customRates, additionalElements = {} } = data;
+                
+                const rates = {
+                    SS_Maladie_Reduit: { sal: 0.0, pat: 0.07 },
+                    SS_Maladie_Plein: { sal: 0.0, pat: 0.13 },
+                    ATMP: { sal: 0.0, pat: customRates.ATMP_Pat },
+                    SS_Vieillesse_Plafonnee: { sal: 0.069, pat: 0.0855 },
+                    SS_Vieillesse_Deplafonnee: { sal: 0.004, pat: 0.019 },
+                    AGIRC_ARRCO_T1: { sal: 0.0315, pat: 0.0472 },
+                    AGIRC_ARRCO_T2: { sal: 0.0864, pat: 0.1296 },
+                    AGIRC_ARRCO_CET: { sal: 0.0023, pat: 0.0035 },
+                    AGIRC_ARRCO_CEG: { sal: 0.005, pat: 0.0075 },
+                    Allocations_Familiales_Reduit: { sal: 0.0, pat: 0.0345 },
+                    Allocations_Familiales_Plein: { sal: 0.0, pat: 0.0525 },
+                    Assurance_Chomage: { sal: 0.0, pat: 0.0405 },
+                    AGS: { sal: 0.0, pat: 0.0019 },
+                    APEC: { sal: 0.00024, pat: 0.00036 },
+                    CSG_CRDS: { sal: 0.098, pat: 0.0 },
+                    Versement_Mobilite: { sal: 0.0, pat: customRates.VM_Pat },
+                    FNAL: { sal: 0.0, pat: customRates.FNAL_Pat },
+                    Forfait_Social_8: { sal: 0.0, pat: 0.08 },
+                    Prevoyance_NonCadre: { sal: customRates.Prevoyance_NonCadre_Sal, pat: customRates.Prevoyance_NonCadre_Pat },
+                    Mutuelle: { sal: customRates.Mutuelle_Sal, pat: customRates.Mutuelle_Pat },
+                    Prévoyance_Cadre_TB: { sal: customRates.Prevoyance_Cadre_TB_Sal, pat: customRates.Prevoyance_Cadre_TB_Pat },
+                    Formation_Pro_Apprentissage: { sal: 0.0, pat: 0.01 },
+                    Reduction_HS: { sal: -0.1131, pat: 0.0 },
+                    TEPA: { sal: 0.0, pat: -0.015 }
+                };
+                
+                const initialAdditionalElements = {
+                    primes: 0,
+                    avantage_en_nature: 0,
+                    indemnite_kilométrique: 0,
+                    heures_comp_10: 0,
+                    heures_comp_25: 0,
+                    deductions: {
+                        abs_sans_solde: 0,
+                        abs_maladie: 0,
+                        abs_cp: 0,
+                        saisie_salaire: 0,
+                        versement_acompte: 0
+                    }
+                };
+                const finalAdditionalElements = mergeDeep({}, initialAdditionalElements, additionalElements);
+                
+                let payslipData = {
+                    brut: { elements: [], total: 0 },
+                    cotisations: [],
+                    totalSalarial: 0,
+                    totalPatronal: 0
+                };
+                
+                // Calcul des éléments du brut
+                const basicSalary = hours * hourlyRate;
+                payslipData.brut.elements.push({ libelle: 'Salaire de base', base: hours, taux: hourlyRate, montant: basicSalary });
+                
+                if (overtimeHours > 0) {
+                    const overtimeRate = hourlyRate * (1 + customRates.overtimeRate / 100);
+                    const overtimeAmount = overtimeHours * overtimeRate;
+                    payslipData.brut.elements.push({ libelle: `Heures supplémentaires (${customRates.overtimeRate}%)`, base: overtimeHours, taux: overtimeRate, montant: overtimeAmount });
+                }
+                
+                if (finalAdditionalElements.heures_comp_10 > 0) {
+                    const compRate = hourlyRate * (1 + 0.1);
+                    const compAmount = finalAdditionalElements.heures_comp_10 * compRate;
+                    payslipData.brut.elements.push({ libelle: 'Heures complémentaires (10%)', base: finalAdditionalElements.heures_comp_10, taux: compRate, montant: compAmount });
+                }
+                
+                if (finalAdditionalElements.heures_comp_25 > 0) {
+                    const compRate = hourlyRate * (1 + 0.25);
+                    const compAmount = finalAdditionalElements.heures_comp_25 * compRate;
+                    payslipData.brut.elements.push({ libelle: 'Heures complémentaires (25%)', base: finalAdditionalElements.heures_comp_25, taux: compRate, montant: compAmount });
+                }
+                
+                if (finalAdditionalElements.primes > 0) {
+                     payslipData.brut.elements.push({ libelle: 'Primes', base: '', taux: '', montant: finalAdditionalElements.primes });
+                }
+                
+                if (finalAdditionalElements.avantage_en_nature > 0) {
+                    payslipData.brut.elements.push({ libelle: 'Avantage en nature', base: '', taux: '', montant: finalAdditionalElements.avantage_en_nature });
+                }
+                
+                payslipData.brut.total = payslipData.brut.elements.reduce((sum, item) => sum + item.montant, 0);
+
+                // Déductions du brut (absences, etc.)
+                if (finalAdditionalElements.deductions.abs_sans_solde > 0) {
+                    payslipData.brut.elements.push({ libelle: 'Retenue pour absence', base: '', taux: '', montant: -finalAdditionalElements.deductions.abs_sans_solde });
+                    payslipData.brut.total -= finalAdditionalElements.deductions.abs_sans_solde;
+                }
+                if (finalAdditionalElements.deductions.abs_maladie > 0) {
+                    payslipData.brut.elements.push({ libelle: 'Retenue pour absence maladie', base: '', taux: '', montant: -finalAdditionalElements.deductions.abs_maladie });
+                    payslipData.brut.total -= finalAdditionalElements.deductions.abs_maladie;
+                }
+                if (finalAdditionalElements.deductions.abs_cp > 0) {
+                    payslipData.brut.elements.push({ libelle: 'Retenue pour absence congés payés', base: '', taux: '', montant: -finalAdditionalElements.deductions.abs_cp });
+                    payslipData.brut.total -= finalAdditionalElements.deductions.abs_cp;
+                }
+                
+                let basePlafonnee = Math.min(payslipData.brut.total, customRates.PSS_Proratise || PMSS);
+                let baseDeplafonnee = payslipData.brut.total;
+
+                let baseCSG = payslipData.brut.total * 0.9825;
+                if (additionalElements.mutuelle_pat) {
+                    baseCSG += additionalElements.mutuelle_pat;
+                }
+                if (additionalElements.prevoyance_pat) {
+                    baseCSG += additionalElements.prevoyance_pat;
+                }
+                
+                const addCotisation = (rubrique, base, rateSal, ratePat) => {
+                    const partSal = base * rateSal;
+                    const partPat = base * ratePat;
+                    payslipData.cotisations.push({ rubrique, base, tauxSal: rateSal, partSal, tauxPat: ratePat, partPat });
+                    payslipData.totalSalarial += partSal;
+                    payslipData.totalPatronal += partPat;
+                };
+
+                const SMIC_CORRESPONDANT = customRates.SMIC_Proratise || SMIC_BRUT_MONTH;
+                
+                const tauxMaladiePat = payslipData.brut.total > 2.5 * SMIC_CORRESPONDANT ? rates.SS_Maladie_Plein.pat : rates.SS_Maladie_Reduit.pat;
+                addCotisation('Santé - Sécurité sociale - maladie, maternité, invalidité, décès', baseDeplafonnee, rates.SS_Maladie_Reduit.sal, tauxMaladiePat);
+                
+                addCotisation('Accidents du travail - maladies professionnelles', baseDeplafonnee, rates.ATMP.sal, rates.ATMP.pat);
+
+                addCotisation('Retraite - Sécurité Sociale plafonnée', basePlafonnee, rates.SS_Vieillesse_Plafonnee.sal, rates.SS_Vieillesse_Plafonnee.pat);
+                addCotisation('Retraite - Sécurité Sociale déplafonée', baseDeplafonnee, rates.SS_Vieillesse_Deplafonnee.sal, rates.SS_Vieillesse_Deplafonnee.pat);
+                
+                let baseT1 = Math.min(baseDeplafonnee, customRates.PSS_Proratise || PMSS);
+                let baseT2 = Math.max(0, baseDeplafonnee - (customRates.PSS_Proratise || PMSS));
+
+                addCotisation('Retraite - Complémentaire T1 (AGIRC-ARRCO)', baseT1, rates.AGIRC_ARRCO_T1.sal, rates.AGIRC_ARRCO_T1.pat);
+                addCotisation('Retraite - Complémentaire T2 (AGIRC-ARRCO)', baseT2, rates.AGIRC_ARRCO_T2.sal, rates.AGIRC_ARRCO_T2.pat);
+                addCotisation('Retraite - Contribution d\'équilibre général T1 (CEG)', baseT1, rates.AGIRC_ARRCO_CEG.sal, rates.AGIRC_ARRCO_CEG.pat);
+                addCotisation('Retraite - Contribution d\'équilibre général T2 (CEG)', baseT2, rates.AGIRC_ARRCO_CEG.sal, rates.AGIRC_ARRCO_CEG.pat);
+                
+                if (baseDeplafonnee > (customRates.PSS_Proratise || PMSS)) {
+                    addCotisation('Retraite - Contribution d\'équilibre technique (CET)', baseDeplafonnee, rates.AGIRC_ARRCO_CET.sal, rates.AGIRC_ARRCO_CET.pat);
+                }
+                
+                if (status === 'cadre') {
+                    addCotisation('Retraite - APEC', baseDeplafonnee, rates.APEC.sal, rates.APEC.pat);
+                }
+                
+                const tauxAFPat = payslipData.brut.total > 3.5 * SMIC_CORRESPONDANT ? rates.Allocations_Familiales_Plein.pat : rates.Allocations_Familiales_Reduit.pat;
+                addCotisation('Allocations familiales', baseDeplafonnee, rates.Allocations_Familiales_Reduit.sal, tauxAFPat);
+                
+                addCotisation('Assurance chômage', baseDeplafonnee, rates.Assurance_Chomage.sal, rates.Assurance_Chomage.pat);
+                addCotisation('AGS', baseDeplafonnee, rates.AGS.sal, rates.AGS.pat);
+
+                const csg_deductible = baseCSG * 0.068;
+                const csg_nondeductible = baseCSG * 0.024;
+                const crds_nondeductible = baseCSG * 0.005;
+
+                payslipData.cotisations.push({ rubrique: 'CSG déductible de l\'impôt sur le revenu', base: baseCSG, tauxSal: 0.068, partSal: csg_deductible, tauxPat: 0, partPat: 0 });
+                payslipData.cotisations.push({ rubrique: 'CSG/CRDS non déductible de l\'impôt sur le revenu', base: baseCSG, tauxSal: 0.024 + 0.005, partSal: csg_nondeductible + crds_nondeductible, tauxPat: 0, partPat: 0 });
+
+                // Net avant impôts
+                const netAvantImpots = payslipData.brut.total - payslipData.totalSalarial;
+
+                // Net social
+                let totalSocial = payslipData.totalSalarial - csg_deductible;
+                const netSocial = payslipData.brut.total - totalSocial;
+                
+                // Net imposable
+                let netImposable = netAvantImpots + csg_nondeductible + crds_nondeductible + (additionalElements.mutuelle_pat || 0) + (additionalElements.prevoyance_pat || 0);
+
+                const impots = netImposable * (taxRate / 100);
+                
+                // Net à payer
+                let netAPayer = netAvantImpots - impots - (finalAdditionalElements.deductions.saisie_salaire || 0) - (finalAdditionalElements.deductions.versement_acompte || 0) + (finalAdditionalElements.indemnite_kilométrique || 0) + (finalAdditionalElements.reimbursement || 0);
+                
+                // Total versé par l'employeur
+                const totalVerse = payslipData.brut.total + payslipData.totalPatronal;
+
+                return {
+                    ...payslipData,
+                    netAvantImpots,
+                    netSocial,
+                    netImposable,
+                    impots,
+                    netAPayer,
+                    totalVerse
+                };
+            }
+
+            function renderPayslip(data, employeeName, status, entreprise, correctionText, congés) {
+                const payslipContainer = document.getElementById('payslip-container');
+                const correctionContent = document.getElementById('correction-content');
+                
+                payslipContainer.innerHTML = '';
+                correctionContent.innerHTML = '';
+                document.getElementById('correction-area').classList.add('active');
+                
+                const headerHtml = `
+                    <div class="mb-4 text-center">
+                        <p class="font-bold text-lg">${entreprise.name}</p>
+                        <p class="text-sm">SIRET: ${entreprise.siret} | Code NAF: ${entreprise.naf}</p>
+                        <p class="text-sm">Convention Collective: ${entreprise.convention}</p>
+                    </div>
+                    <div class="flex justify-between text-sm mb-4 border-b pb-2">
+                        <span>Nom du salarié: <strong>${employeeName}</strong></span>
+                        <span>Emploi: ${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                    </div>
+                `;
+                
+                let brutElementsHtml = data.brut.elements.map(item => `
+                    <div class="payslip-grid payslip-grid-item">
+                        <span class="payslip-title">${item.libelle}</span>
+                        <span class="payslip-value">${item.base ? item.base.toFixed(2).replace('.', ',') : '-'}</span>
+                        <span class="payslip-value">${item.taux ? formatEuro(item.taux) : '-'}</span>
+                        <span class="payslip-value">${formatEuro(item.montant)}</span>
+                    </div>
+                `).join('');
+                
+                const mainHtml = `
+                    <div class="payslip-section">
+                        <h3 class="font-bold text-gray-700 mb-2">Salaire et Primes</h3>
+                        <div class="payslip-grid payslip-grid-header border-b border-gray-300 mb-2">
+                            <span>Élément</span>
+                            <span class="text-right">Base</span>
+                            <span class="text-right">Taux</span>
+                            <span class="text-right">Montant</span>
+                        </div>
+                        <div class="space-y-1">
+                            ${brutElementsHtml}
+                        </div>
+                        <div class="flex justify-between text-sm mt-4">
+                            <span class="font-bold text-gray-800">Salaire brut</span>
+                            <span class="font-bold text-gray-800">${formatEuro(data.brut.total)}</span>
+                        </div>
+                    </div>
+                `;
+                
+                let cotisationHtml = `<div class="payslip-section">
+                    <h3 class="font-bold text-gray-700 mb-2">Cotisations et contributions sociales</h3>
+                    <div class="payslip-grid payslip-grid-header border-b border-gray-300 mb-2">
+                        <span>Rubrique</span>
+                        <span class="text-right">Base</span>
+                        <span class="text-right">Taux</span>
+                        <span class="text-right">Part salariale</span>
+                        <span class="text-right">Part patronale</span>
+                    </div>
+                    <div class="space-y-1">
+                `;
+                data.cotisations.forEach(coti => {
+                    cotisationHtml += `
+                        <div class="payslip-grid payslip-grid-item">
+                            <span class="payslip-title">${coti.rubrique}</span>
+                            <span class="payslip-value">${formatEuro(coti.base)}</span>
+                            <span class="payslip-value">${coti.tauxSal ? formatPercent(coti.tauxSal) : '-'}</span>
+                            <span class="payslip-value">${formatEuro(coti.partSal)}</span>
+                            <span class="payslip-value">${coti.tauxPat ? formatPercent(coti.tauxPat) : '-'}</span>
+                            <span class="payslip-value">${formatEuro(coti.partPat)}</span>
+                        </div>
+                    `;
+                });
+                cotisationHtml += `</div></div>`;
+                
+                const netAndTotalsHtml = `
+                    <div class="payslip-section">
+                        <div class="flex justify-between font-bold text-xl text-blue-600 mb-2">
+                            <span class="payslip-title">Net à payer avant impôt sur le revenu</span>
+                            <span class="font-bold">${formatEuro(data.netAvantImpots)}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Impôt sur le revenu prélevé à la source (${formatPercent(data.taxRate / 100)})</span>
+                            <span class="font-medium">${formatEuro(data.impots)}</span>
+                        </div>
+                        <div class="flex justify-between mt-2 font-bold text-xl text-blue-600">
+                            <span class="payslip-title">Net à payer</span>
+                            <span class="font-bold">${formatEuro(data.netAPayer)}</span>
+                        </div>
+                    </div>
+                    <div class="payslip-section text-sm">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Montant net social</span>
+                            <span class="font-bold text-gray-800">${formatEuro(data.netSocial)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total versé par l'employeur</span>
+                            <span class="font-bold text-gray-800">${formatEuro(data.totalVerse)}</span>
+                        </div>
+                    </div>
+                `;
+                
+                let congesHtml = `
+                    <div class="payslip-section text-sm">
+                        <h3 class="font-bold text-gray-700 mb-2">Congés</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="font-semibold text-gray-600">Congés Payés</h4>
+                                <p>Cumul acquis : <strong>${congés.cp.acquis} jours</strong></p>
+                                <p>Cumul pris : <strong>${congés.cp.pris} jours</strong></p>
+                                <p>Solde : <strong>${congés.cp.solde} jours</strong></p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-600">Repos Compensateur</h4>
+                                <p>Cumul acquis : <strong>${congés.rtt.acquis} heures</strong></p>
+                                <p>Cumul pris : <strong>${congés.rtt.pris} heures</strong></p>
+                                <p>Solde : <strong>${congés.rtt.solde} heures</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                payslipContainer.innerHTML = headerHtml + mainHtml + cotisationHtml + netAndTotalsHtml + congesHtml;
+                correctionContent.innerHTML = correctionText;
+
+                document.querySelectorAll('.collapsible-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        header.classList.toggle('active');
+                        const content = header.nextElementSibling;
+                        if (content.style.display === "block") {
+                            content.style.display = "none";
+                        } else {
+                            content.style.display = "block";
+                        }
+                    });
+                });
+            }
+
+            document.getElementById('calculateButton').addEventListener('click', () => {
+                const hours = parseFloat(document.getElementById('hours').value);
+                const hourlyRate = parseFloat(document.getElementById('hourlyRate').value);
+                const overtimeHours = parseFloat(document.getElementById('overtimeHours').value);
+                const additionalHours = parseFloat(document.getElementById('additionalHours').value);
+                const primes = parseFloat(document.getElementById('primes').value);
+                const an_vehicle = parseFloat(document.getElementById('an_vehicle').value);
+                const an_food = parseFloat(document.getElementById('an_food').value);
+                const reimbursement = parseFloat(document.getElementById('reimbursement').value);
+                const acompte = parseFloat(document.getElementById('acompte').value);
+                const taxRate = parseFloat(document.getElementById('taxRate').value);
+                const status = document.getElementById('status').value;
+                const daysPresent = parseFloat(document.getElementById('days_present').value);
+                const pmssValue = parseFloat(document.getElementById('pmss').value);
+                
+                const pmssProratise = daysPresent < 30 ? pmssValue * (daysPresent / 30) : pmssValue;
+
+                const data = {
+                    hours: hours,
+                    hourlyRate: hourlyRate,
+                    overtimeHours: overtimeHours,
+                    additionalHours: additionalHours,
+                    taxRate: taxRate,
+                    status: status,
+                    customRates: {
+                        ATMP_Pat: 0.018,
+                        VM_Pat: 0.02,
+                        FNAL_Pat: 0.005,
+                        Prevoyance_NonCadre_Sal: 0.0,
+                        Prevoyance_NonCadre_Pat: 0.0,
+                        Prevoyance_Cadre_TB_Sal: 0.0086,
+                        Prevoyance_Cadre_TB_Pat: 0.01,
+                        Mutuelle_Sal: 0.01,
+                        Mutuelle_Pat: 0.01,
+                        overtimeRate: 25,
+                        PSS_Proratise: pmssProratise
+                    },
+                    additionalElements: {
+                        primes: primes,
+                        avantage_en_nature: an_vehicle + an_food,
+                        indemnite_kilométrique: reimbursement,
+                        versement_acompte: acompte
+                    },
+                    entreprise: {
+                         name: "QRANSPAC",
+                         siret: "12345678900000",
+                         naf: "7022Z",
+                         convention: "SYNTEC"
+                    }
+                };
+                const payslipData = calculatePayslip(data);
+                
+                const resultDiv = document.getElementById('calculator-result');
+                resultDiv.innerHTML = `
+                    <div class="bg-blue-100 p-4 rounded-lg shadow">
+                        <h3 class="text-xl font-bold text-blue-700 mb-4">Résultats du calcul</h3>
+                        <div class="space-y-2 text-gray-800">
+                            <p><strong>Salaire Brut :</strong> <span class="float-right">${formatEuro(payslipData.brut.total)}</span></p>
+                            <p><strong>Total Cotisations Salariales :</strong> <span class="float-right">${formatEuro(payslipData.totalSalarial)}</span></p>
+                            <p><strong>Net avant impôt :</strong> <span class="float-right">${formatEuro(payslipData.netAvantImpots)}</span></p>
+                            <p><strong>Impôt sur le revenu :</strong> <span class="float-right">${formatEuro(payslipData.impots)}</span></p>
+                            <p><strong>Net à payer :</strong> <span class="float-right">${formatEuro(payslipData.netAPayer)}</span></p>
+                            <p><strong>Montant net social :</strong> <span class="float-right">${formatEuro(payslipData.netSocial)}</span></p>
+                            <p><strong>Total versé par l'employeur :</strong> <span class="float-right">${formatEuro(payslipData.totalVerse)}</span></p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.querySelectorAll('.exercise-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const exerciseId = event.target.dataset.exercise;
+                    let data = {};
+                    let correctionText = '';
+                    let employeeName = '';
+                    let status = '';
+                    let congés = { cp: { acquis: 0, pris: 0, solde: 0 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+
+                    switch (exerciseId) {
+                        case 'tropin':
+                            employeeName = "M. TROPIN";
+                            status = "cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 30,
+                                overtimeHours: 5,
+                                taxRate: 13.50,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.018,
+                                    VM_Pat: 0.02,
+                                    FNAL_Pat: 0.005,
+                                    Prevoyance_Cadre_TB_Sal: 0.0086,
+                                    Prevoyance_Cadre_TB_Pat: 0.01,
+                                    Mutuelle_Sal: 0.01,
+                                    Mutuelle_Pat: 0.01,
+                                    overtimeRate: 25
+                                },
+                                entreprise: { name: "QRANSPAC", siret: "12345678900000", naf: "7022Z", convention: "SYNTEC" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <h4 class="font-semibold text-gray-700">Calcul des revenus :</h4>
+                                    <p class="mb-2">Le salaire brut est la somme des éléments de rémunération.</p>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li class="color-gross p-1 rounded"><strong>Salaire de base :</strong> 151.67 h x 30 € = ${formatEuro(4550.10)}</li>
+                                        <li class="color-gross p-1 rounded"><strong>Heures supplémentaires (25%) :</strong> 5 h x (30 € x 1.25) = ${formatEuro(187.50)}</li>
+                                    </ul>
+                                    <p class="mt-4"><strong>Salaire Brut Total :</strong> ${formatEuro(4550.10 + 187.50)}</p>
+                                </div>
+
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <h4 class="font-semibold text-gray-700">Détermination des taux de cotisations patronales :</h4>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li>Le salaire brut (${formatEuro(4737.60)}) est supérieur à 2.5 SMIC (${formatEuro(SMIC_BRUT_MONTH * 2.5)}), donc le taux de l'assurance maladie passe de 7% à <strong>13%</strong>.</li>
+                                        <li>Le salaire brut est inférieur à 3.5 SMIC (${formatEuro(SMIC_BRUT_MONTH * 3.5)}), donc le taux des allocations familiales reste à <strong>3.45%</strong>.</li>
+                                    </ul>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul des cotisations patronales et salariales :</h4>
+                                    <p class="mb-2">Les cotisations sont calculées sur la base du salaire brut. Le PMSS est de ${formatEuro(PMSS)}.</p>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li class="color-social p-1 rounded"><strong>Maladie :</strong> Part salariale: 0.00 €, Part patronale: ${formatEuro(4737.60 * 0.13)}</li>
+                                        <li class="color-social p-1 rounded"><strong>Retraite Plafonnée :</strong> Base: ${formatEuro(PMSS)}. Salariale: ${formatEuro(PMSS * 0.069)}, Patronale: ${formatEuro(PMSS * 0.0855)}.</li>
+                                        <li class="color-social p-1 rounded"><strong>Retraite Déplafonée :</strong> Base: ${formatEuro(4737.60)}. Salariale: ${formatEuro(4737.60 * 0.004)}, Patronale: ${formatEuro(4737.60 * 0.019)}.</li>
+                                    </ul>
+                                </div>
+
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <h4 class="font-semibold text-gray-700">Calcul du Net avant impôt :</h4>
+                                    <p class="mb-2"><strong>Net avant impôt = Salaire brut - Cotisations salariales.</strong></p>
+                                    <p>Net avant impôt = ${formatEuro(data.brut.total)} - ${formatEuro(data.totalSalarial)} = ${formatEuro(data.netAvantImpots)}</p>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul du Net Imposable et de l'Impôt :</h4>
+                                    <p class="mb-2">Le net imposable est la base pour calculer le prélèvement à la source.</p>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li class="color-net-imposable p-1 rounded"><strong>Net Imposable =</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle + Part patronale prévoyance.</li>
+                                        <li class="color-net-imposable p-1 rounded"><strong>Calcul :</strong> ${formatEuro(data.netAvantImpots)} + ${formatEuro(137.24+28.59)} + ${formatEuro(60)} + ${formatEuro(57.96)} = ${formatEuro(data.netImposable)}</li>
+                                        <li class="color-impot p-1 rounded"><strong>Impôt sur le revenu :</strong> ${formatEuro(data.netImposable)} x 13.50% = ${formatEuro(data.impots)}</li>
+                                    </ul>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul du Net à payer :</h4>
+                                    <p><strong>Net à payer = Net avant impôt - Impôt sur le revenu.</strong></p>
+                                    <p>Net à payer = ${formatEuro(data.netAvantImpots)} - ${formatEuro(data.impots)} = ${formatEuro(data.netAPayer)}</p>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul du Net Social :</h4>
+                                    <p><strong>Net Social =</strong> Salaire brut - total cotisations salariales (sauf CSG déductible).</p>
+                                </div>
+                            `;
+                            break;
+                        case 'qamatra':
+                            employeeName = "Mme QAMATRA";
+                            status = "non-cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 12.50,
+                                overtimeHours: 0,
+                                taxRate: 4.05,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.018,
+                                    VM_Pat: 0.02,
+                                    FNAL_Pat: 0.005,
+                                    Prevoyance_NonCadre_Sal: 0.0,
+                                    Prevoyance_NonCadre_Pat: 0.0,
+                                    Prevoyance_Cadre_TB_Sal: 0.0086,
+                                    Prevoyance_Cadre_TB_Pat: 0.01,
+                                    Mutuelle_Sal: 0.01,
+                                    Mutuelle_Pat: 0.01,
+                                    overtimeRate: 25
+                                },
+                                entreprise: { name: "QRANSPAC", siret: "12345678900000", naf: "7022Z", convention: "SYNTEC" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <h4 class="font-semibold text-gray-700">Calcul des revenus :</h4>
+                                    <p class="mb-2">Le salaire brut est la somme des éléments de rémunération.</p>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li class="color-gross p-1 rounded"><strong>Salaire de base :</strong> 151.67 h x 12.50 € = ${formatEuro(1895.88)}</li>
+                                    </ul>
+                                    <p class="mt-4"><strong>Salaire Brut Total :</strong> ${formatEuro(1895.88)}</p>
+                                </div>
+
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <h4 class="font-semibold text-gray-700">Détermination des taux de cotisations patronales :</h4>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li>Le salaire brut (${formatEuro(1895.88)}) est inférieur à 2.5 SMIC (${formatEuro(SMIC_BRUT_MONTH * 2.5)}), donc le taux de l'assurance maladie reste à <strong>7%</strong>.</li>
+                                        <li>Le salaire brut est inférieur à 3.5 SMIC (${formatEuro(SMIC_BRUT_MONTH * 3.5)}), donc le taux des allocations familiales reste à <strong>3.45%</strong>.</li>
+                                    </ul>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul des cotisations patronales et salariales :</h4>
+                                    <p><strong>Réduction Générale (Ex-Fillon) :</strong></p>
+                                    <p>Puisque le salaire est inférieur à 1.6 SMIC, la réduction générale s'applique. Le coefficient se calcule comme suit :</p>
+                                    <p>Coefficient = $$(0.3194 / 0.6) \times (((1.6 \times 1895.88€) / 1895.88€) - 1)$$</p>
+                                    <p>Coefficient = 0.2614</p>
+                                    <p>Montant de la réduction = ${formatEuro(1895.88)} x 0.2614 = ${formatEuro(495.58)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <h4 class="font-semibold text-gray-700">Calcul du Net avant impôt :</h4>
+                                    <p><strong>Net avant impôt = Salaire brut - Cotisations salariales.</strong></p>
+                                    <p>Net avant impôt = ${formatEuro(data.brut.total)} - ${formatEuro(data.totalSalarial)} = ${formatEuro(data.netAvantImpots)}</p>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul du Net Imposable et de l'Impôt :</h4>
+                                    <p class="mb-2">Le net imposable est la base pour calculer le prélèvement à la source.</p>
+                                    <p><strong>Net Imposable =</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle</p>
+                                    <p><strong>Net Imposable :</strong> ${formatEuro(data.netAvantImpots)} + ${formatEuro(55.14)} + ${formatEuro(38.64)} = ${formatEuro(1552.16)}</p>
+                                    <p><strong>Impôt sur le revenu :</strong> ${formatEuro(1552.16)} x 4.05% = ${formatEuro(data.impots)}</p>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul du Net à payer :</h4>
+                                    <p><strong>Net à payer = Net avant impôt - Impôt sur le revenu.</strong></p>
+                                    <p>Net à payer = ${formatEuro(data.netAvantImpots)} - ${formatEuro(data.impots)} = ${formatEuro(data.netAPayer)}</p>
+                                    <h4 class="font-semibold text-gray-700 mt-4">Calcul du Net Social :</h4>
+                                    <p><strong>Net Social =</strong> Salaire brut - total cotisations salariales (sauf CSG déductible).</p>
+                                </div>
+                            `;
+                            break;
+                        case 'chartier':
+                            employeeName = "M. CHARTIER";
+                            status = "non-cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 12.5272,
+                                overtimeHours: 0,
+                                taxRate: 4.5,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.0065,
+                                    FNAL_Pat: 0.005,
+                                    reduction_coeff: 0.3234,
+                                    Mutuelle_Sal: 0.0075,
+                                    Mutuelle_Pat: 0.0075,
+                                    overtimeRate: 25,
+                                    Prevoyance_NonCadre_Sal: 0.005,
+                                    Prevoyance_NonCadre_Pat: 0.015,
+                                },
+                                additionalElements: {
+                                    indemnite_kilométrique: 243.95,
+                                    versement_acompte: 200
+                                },
+                                entreprise: { name: "ENTREPRISE (85 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p class="mb-2"><strong>Salaire de base :</strong> 151.67 h x 12.5272 € = ${formatEuro(1900.00)}</p>
+                                    <p class="mt-4"><strong>Salaire Brut Total :</strong> ${formatEuro(1900.00)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Réduction Générale :</strong> Le coefficient de 0.3234 est appliqué pour une entreprise de plus de 50 salariés.</p>
+                                    <p>Coefficient = $$(0.3234 / 0.6) \times (((1.6 \times ${SMIC_BRUT_MONTH}) / 1900) - 1) = 0.2630$$</p>
+                                    <p>Réduction = ${formatEuro(1900)} x 0.2630 = ${formatEuro(499.70)}</p>
+                                    <p><strong>FNAL :</strong> Taux de 0.50% (entreprise > 20 salariés).</p>
+                                    <p><strong>Versement Mobilité :</strong> Taux de 0.65%.</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Net Imposable :</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle + Part patronale prévoyance + Indemnités kilométriques.</p>
+                                    <p>Net Imposable = ${formatEuro(1544.76)} (selon doc.)</p>
+                                    <p><strong>Net à Payer :</strong> Net avant impôt - Impôt - Acompte.</p>
+                                    <p>Net à Payer = ${formatEuro(1434.42)}</p>
+                                </div>
+                            `;
+                            break;
+                        case 'cabos':
+                            employeeName = "M. CABOS";
+                            status = "non-cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 13.1865,
+                                overtimeHours: 15,
+                                taxRate: 4.5,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.0,
+                                    FNAL_Pat: 0.001,
+                                    reduction_coeff: 0.3206,
+                                    Mutuelle_Sal: 0.0075,
+                                    Mutuelle_Pat: 0.0075,
+                                    overtimeRate: 25,
+                                    Prevoyance_NonCadre_Sal: 0.005,
+                                    Prevoyance_NonCadre_Pat: 0.015,
+                                },
+                                additionalElements: {
+                                    saisie_salaire: 295.43
+                                },
+                                entreprise: { name: "ENTREPRISE (6 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                             correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 151.67 h x 13.1865 € = ${formatEuro(2000.00)}</p>
+                                    <p><strong>Heures supplémentaires :</strong> 15 h x 13.1865 € x 1.25 = ${formatEuro(247.25)}</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(2247.25)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Réduction Générale :</strong> Le coefficient de 0.3206 est appliqué car l'entreprise a moins de 20 salariés.</p>
+                                    <p>Coefficient = $$(0.3206 / 0.6) \times (((1.6 \times ${SMIC_BRUT_MONTH}) / 2247.25) - 1) = 0.2035$$</p>
+                                    <p>Réduction = ${formatEuro(2247.25)} x 0.2035 = ${formatEuro(457.31)}</p>
+                                    <p><strong>FNAL :</strong> Taux de 0.10% (entreprise < 20 salariés).</p>
+                                    <p><strong>Versement Mobilité :</strong> Non applicable (entreprise < 11 salariés).</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Net à Payer :</strong> Net avant impôt - Impôt - Saisie sur salaire.</p>
+                                    <p>Net à Payer = ${formatEuro(1734.56)} - ${formatEuro(71.59)} - ${formatEuro(295.43)} = ${formatEuro(1367.54)}</p>
+                                </div>
+                            `;
+                            break;
+                        case 'cryptais':
+                            employeeName = "M. CRYPTAIS";
+                            status = "non-cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 23.0764,
+                                overtimeHours: 15,
+                                taxRate: 8,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.02,
+                                    FNAL_Pat: 0.005,
+                                    Prevoyance_NonCadre_Sal: 0.0,
+                                    Prevoyance_NonCadre_Pat: 0.0,
+                                    Mutuelle_Sal: 0.0,
+                                    Mutuelle_Pat: 0.0,
+                                    overtimeRate: 25,
+                                    eligibleTEPA: true
+                                },
+                                additionalElements: {
+                                    avantage_en_nature: 175,
+                                    mutuelle_sal: 40,
+                                    mutuelle_pat: 60,
+                                    forfaitSocialBase: 60,
+                                    reduction_Tepa: 22.50
+                                },
+                                entreprise: { name: "ENTREPRISE (11 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 151.67 h x 23.0764 € = ${formatEuro(3500.00)}</p>
+                                    <p><strong>Avantage en nature :</strong> ${formatEuro(175.00)}</p>
+                                    <p><strong>Heures supplémentaires :</strong> 15 h x 30.2879 € = ${formatEuro(454.32)}</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(4129.32)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Réduction Générale :</strong> Le salaire est > 1.6 SMIC, donc pas de réduction générale.</p>
+                                    <p><strong>Déduction TEPA :</strong> Applicable sur les heures supplémentaires car l'effectif est < 20 salariés. Le montant est de ${formatEuro(22.50)}.</p>
+                                    <p><strong>Forfait Social :</strong> Taux de 8% sur la part patronale de la mutuelle et des avantages en nature. Base = ${formatEuro(60)} + ${formatEuro(175)} = ${formatEuro(235)}.</p>
+                                    <p>Forfait Social = ${formatEuro(235 * 0.08)} = ${formatEuro(18.80)}. Le document utilise une base de 60€, soit un forfait social de 4.80€, nous suivons le document.</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Net Imposable :</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle + AN.</p>
+                                    <p>Net Imposable = ${formatEuro(2965.19)} (selon doc.)</p>
+                                    <p><strong>Net à Payer :</strong> Net avant impôt - Impôt - AN. Le montant de l'avantage en nature est déduit du net à payer car il a déjà été versé "en nature".</p>
+                                    <p>Net à Payer = ${formatEuro(3034.76)} - ${formatEuro(237.21)} - ${formatEuro(175.00)} = ${formatEuro(2622.55)} (selon mon calcul), le document donne ${formatEuro(2797.54)}. Il y a un écart.</p>
+                                </div>
+                            `;
+                            break;
+                        case 'cocagnac':
+                            employeeName = "Mme COCAGNAC";
+                            status = "non-cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 121.33,
+                                hourlyRate: 12.7751,
+                                overtimeHours: 8,
+                                taxRate: 4,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.0065,
+                                    FNAL_Pat: 0.001,
+                                    reduction_coeff: 0.3194,
+                                    Mutuelle_Sal: 0.0075,
+                                    Mutuelle_Pat: 0.0075,
+                                    overtimeRate: 10,
+                                    Prevoyance_NonCadre_Sal: 0.005,
+                                    Prevoyance_NonCadre_Pat: 0.015,
+                                },
+                                entreprise: { name: "ENTREPRISE (11 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 121.33 h x 12.7751 € = ${formatEuro(1550.00)}</p>
+                                    <p><strong>Heures complémentaires :</strong> 8 h x 14.05 € = ${formatEuro(112.42)}</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(1662.42)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Réduction Générale :</strong> Le salaire est < 1.6 SMIC, donc la réduction générale s'applique. L'horaire de référence est l'horaire temps plein (151.67h).</p>
+                                    <p>Coefficient = $$(0.3194 / 0.6) \times (((1.6 \times ${SMIC_BRUT_MONTH}) / 1662.42) - 1) = 0.1733$$</p>
+                                    <p>Réduction = ${formatEuro(1662.42)} x 0.1733 = ${formatEuro(288.09)}</p>
+                                    <p><strong>Déduction TEPA :</strong> Pas de déduction TEPA sur les heures complémentaires.</p>
+                                </div>
+                            `;
+                            break;
+                        case 'cachin':
+                            employeeName = "M. CACHIN";
+                            status = "non-cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 91,
+                                hourlyRate: 12,
+                                overtimeHours: 0,
+                                taxRate: 4,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.015,
+                                    VM_Pat: 0.02,
+                                    FNAL_Pat: 0.005,
+                                    reduction_coeff: 0.3194,
+                                    Mutuelle_Sal: 0.015,
+                                    Mutuelle_Pat: 0.015,
+                                    overtimeRate: 25,
+                                    PSS_Proratise: 2509.41,
+                                    SMIC_Proratise: 1351.40,
+                                },
+                                additionalElements: {
+                                    heures_comp_10: 6.2,
+                                    heures_comp_25: 1.3
+                                },
+                                entreprise: { name: "ENTREPRISE (22 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 91 h x 12 € = ${formatEuro(1092)}</p>
+                                    <p><strong>Heures comp. maj. 10% :</strong> 6.2 h x 13.20 € = ${formatEuro(81.84)}</p>
+                                    <p><strong>Heures comp. maj. 25% :</strong> 1.3 h x 15.00 € = ${formatEuro(19.50)}</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(1193.34)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>PSS Proratisé :</strong> $$(3864 / 151.67) \times (91 + 6.2 + 1.3) = ${formatEuro(2509.41)}$$</p>
+                                    <p><strong>SMIC Proratisé :</strong> $$(91 + 6.2 + 1.3) \times 11.65 = ${formatEuro(1135.24)}$$. Le document utilise ${formatEuro(1351.40)}, nous suivons cette valeur.</p>
+                                    <p><strong>Réduction Générale :</strong> Le salaire est < 1.6 SMIC proratisé, donc la réduction s'applique.</p>
+                                    <p>Coefficient = $$(0.3194 / 0.6) \times (((1.6 \times ${formatEuro(1351.40)}) / 1193.34) - 1) = 0.2867$$</p>
+                                    <p>Réduction = ${formatEuro(1193.34)} x 0.2867 = ${formatEuro(342.13)}</p>
+                                </div>
+                            `;
+                            break;
+                        case 'chantre':
+                            employeeName = "Mme CHANTRE";
+                            status = "cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 37.5816,
+                                overtimeHours: 0,
+                                taxRate: 9,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.0,
+                                    FNAL_Pat: 0.001,
+                                    Prevoyance_Cadre_TB_Sal: 0.0,
+                                    Prevoyance_Cadre_TB_Pat: 0.015,
+                                    Mutuelle_Sal: 0.0,
+                                    Mutuelle_Pat: 0.0,
+                                },
+                                additionalElements: {
+                                    mutuelle_sal: 40,
+                                    mutuelle_pat: 60,
+                                    prevoyance_cadre_pat: 57.96,
+                                },
+                                entreprise: { name: "ENTREPRISE (4 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 151.67 h x 37.5816 € = ${formatEuro(5700.00)}</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(5700.00)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Réduction Générale :</strong> Le salaire (${formatEuro(5700)}) est > 1.6 SMIC (${formatEuro(SMIC_BRUT_MONTH * 1.6)}), donc pas de réduction générale.</p>
+                                    <p><strong>Assurance Maladie :</strong> Le salaire est > 2.5 SMIC, donc taux de 13%.</p>
+                                    <p><strong>Allocations Familiales :</strong> Le salaire est > 3.5 SMIC, donc taux de 5.25%.</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Net Imposable :</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle + Part patronale prévoyance.</p>
+                                    <p>Net Imposable = ${formatEuro(4387.66)} + ${formatEuro(137.24+28.59)} + ${formatEuro(60)} + ${formatEuro(57.96)} = ${formatEuro(4671.45)}. Le document utilise ${formatEuro(4698.99)}, nous suivons le document.</p>
+                                </div>
+                            `;
+                            break;
+                        case 'tambourin':
+                            employeeName = "M. TAMBOURIN";
+                            status = "cadre";
+                            congés = { cp: { acquis: 2.08, pris: 0, solde: 2.08 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 151.67,
+                                hourlyRate: 21.7578,
+                                overtimeHours: 0,
+                                taxRate: 8,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.0,
+                                    FNAL_Pat: 0.001,
+                                    Prevoyance_Cadre_TB_Sal: 0.0,
+                                    Prevoyance_Cadre_TB_Pat: 0.015,
+                                    Mutuelle_Sal: 0.0,
+                                    Mutuelle_Pat: 0.0,
+                                },
+                                additionalElements: {
+                                    primes: 300,
+                                    mutuelle_sal: 40,
+                                    mutuelle_pat: 60,
+                                    prevoyance_cadre_pat: 54,
+                                },
+                                entreprise: { name: "ENTREPRISE (4 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 151.67 h x 21.7578 € = ${formatEuro(3300.00)}</p>
+                                    <p><strong>Prime :</strong> ${formatEuro(300.00)}</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(3600.00)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Réduction Générale :</strong> Le salaire est > 1.6 SMIC, donc pas de réduction générale.</p>
+                                    <p><strong>Assurance Maladie :</strong> Le salaire est < 2.5 SMIC, donc taux de 7%.</p>
+                                    <p><strong>Allocations Familiales :</strong> Le salaire est < 3.5 SMIC, donc taux de 3.45%.</p>
+                                    <p><strong>Base CSG/CRDS :</strong> (Salaire brut x 98.25%) + Part patronale mutuelle + Part patronale prévoyance</p>
+                                    <p>Base CSG/CRDS = $$(3600 \times 0.9825) + 60 + 54 = 3651.00$$</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Net Imposable :</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle.</p>
+                                    <p>Net Imposable = ${formatEuro(2743.83)} + ${formatEuro(87.62 + 18.25)} + ${formatEuro(60)} = ${formatEuro(2909.7)}.</p>
+                                    <p>Net payé en euros = ${formatEuro(2506.73)}</p>
+                                </div>
+                            `;
+                            break;
+                        case 'thillou':
+                            employeeName = "M. THILLOU";
+                            status = "cadre";
+                            congés = { cp: { acquis: 30, pris: 6, solde: 24 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+                            data = {
+                                hours: 91,
+                                hourlyRate: 15,
+                                overtimeHours: 0,
+                                taxRate: 5,
+                                status: status,
+                                customRates: {
+                                    ATMP_Pat: 0.02,
+                                    VM_Pat: 0.015,
+                                    FNAL_Pat: 0.005,
+                                    reduction_coeff: 0.3194,
+                                    Mutuelle_Sal: 0.0,
+                                    Mutuelle_Pat: 0.0,
+                                    PSS_Proratise: 2186.07,
+                                    SMIC_Proratise: 920.20
+                                },
+                                additionalElements: {
+                                    avantage_en_nature: 32.10,
+                                    remboursement_frais_pro: 100,
+                                    indemnite_cp: 327.60,
+                                    complement_employeur: 273,
+                                    heures_comp_10: 2.1,
+                                    heures_comp_25: 1.9,
+                                    deductions: {
+                                        abs_sans_solde: 273,
+                                        abs_maladie: 273,
+                                        abs_cp: 315
+                                    },
+                                    mutuelle_sal: 30,
+                                    mutuelle_pat: 40,
+                                    forfaitSocialBase: 32.10 + 40,
+                                    prevoyance_cadre_pat: 18.13
+                                },
+                                entreprise: { name: "ENTREPRISE (11 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
+                            };
+                            correctionText = `
+                                <div class="collapsible-header">
+                                    <span>Calcul du Salaire Brut</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Salaire de base :</strong> 91 h x 15 € = ${formatEuro(1365.00)}</p>
+                                    <p><strong>Retenue absence :</strong> Le salarié a eu plusieurs absences, qui sont déduites du salaire brut : ${formatEuro(273)} (sans solde) + ${formatEuro(273)} (maladie) + ${formatEuro(315)} (congés payés).</p>
+                                    <p><strong>Salaire Brut Total :</strong> ${formatEuro(1208.63)}</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Analyse des Taux et Cotisations</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>PSS Proratisé :</strong> Le PSS est proratisé en fonction du temps de présence. Le document utilise ${formatEuro(2186.07)}.</p>
+                                    <p><strong>SMIC Proratisé :</strong> Le SMIC est proratisé pour le calcul de la réduction générale. Le document utilise ${formatEuro(920.20)}.</p>
+                                    <p><strong>Réduction Générale :</strong> Le salaire est < 1.6 SMIC proratisé, donc la réduction générale s'applique. Le montant est de ${formatEuro(140.32)}.</p>
+                                </div>
+                                <div class="collapsible-header">
+                                    <span>Calcul du Net à Payer</span>
+                                </div>
+                                <div class="collapsible-content">
+                                    <p><strong>Net Imposable :</strong> Net avant impôt + CSG/CRDS non déductible + Part patronale mutuelle + AN.</p>
+                                    <p>Net Imposable = ${formatEuro(919.80)} (selon doc.)</p>
+                                    <p><strong>Net à Payer :</strong> Net avant impôt - Impôt + Remboursement de frais - AN.</p>
+                                    <p>Net à Payer = ${formatEuro(878.70)} - ${formatEuro(46.99)} + ${formatEuro(100)} - ${formatEuro(32.10)} = ${formatEuro(899.61)}. Le document donne ${formatEuro(814.14)}, il y a un écart.</p>
+                                </div>
+                            `;
+                            break;
+                    }
+                    
+                    const payslipData = calculatePayslip(data);
+                    renderPayslip(payslipData, employeeName, status, data.entreprise, correctionText, congés);
+                    showTab('payslip');
+                });
+            });
+
+            const initialData = {
+                hours: 151.67,
+                hourlyRate: 12.50,
+                overtimeHours: 0,
+                taxRate: 4.05,
+                status: 'non-cadre',
+                customRates: {
+                    ATMP_Pat: 0.018,
+                    VM_Pat: 0.02,
+                    FNAL_Pat: 0.005,
+                    Prevoyance_NonCadre_Sal: 0.0,
+                    Prevoyance_NonCadre_Pat: 0.0,
+                    Prevoyance_Cadre_TB_Sal: 0.0086,
+                    Prevoyance_Cadre_TB_Pat: 0.01,
+                    Mutuelle_Sal: 0.01,
+                    Mutuelle_Pat: 0.01,
+                    overtimeRate: 25
+                },
+                entreprise: {
+                     name: "QRANSPAC",
+                     siret: "12345678900000",
+                     naf: "7022Z",
+                     convention: "SYNTEC"
+                }
+            };
+            const initialCongés = { cp: { acquis: 0, pris: 0, solde: 0 }, rtt: { acquis: 0, pris: 0, solde: 0 } };
+            const initialPayslip = calculatePayslip(initialData);
+            renderPayslip(initialPayslip, "Mme QAMATRA", "non-cadre", initialData.entreprise, "Utilisez la section 'Exercices' pour afficher une correction détaillée.", initialCongés);
+        });
+    </script>
+</body>
+</html>
