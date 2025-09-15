@@ -33,15 +33,17 @@
         }
         .payslip-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: 1fr 0.7fr 0.7fr 0.7fr 0.7fr;
             gap: 0.5rem;
+            align-items: center;
         }
         .payslip-grid-header {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             font-weight: 600;
             text-transform: uppercase;
             color: #6b7280;
             padding-bottom: 0.5rem;
+            text-align: center;
         }
         .payslip-grid-item {
             font-size: 0.875rem;
@@ -50,9 +52,11 @@
         .payslip-title {
             font-weight: 700;
             color: #1f2937;
+            text-align: left;
         }
         .payslip-value {
             text-align: right;
+            font-size: 0.8rem;
         }
         .correction-section {
             display: none;
@@ -93,6 +97,45 @@
         .bg-blue-200-light { background-color: #dbeafe; }
         .bg-gray-300-light { background-color: #e5e7eb; }
         
+        .info-icon {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            margin-left: 0.5rem;
+            cursor: pointer;
+            color: #3b82f6;
+        }
+        .info-tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 1rem;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: normal;
+            width: 300px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .info-container:hover .info-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .info-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-8">
@@ -127,9 +170,34 @@
         <div id="calculator" class="tab-content">
             <h2 class="text-2xl font-semibold mb-4 text-blue-500">Calculateur de Salaire</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <!-- Company Info -->
+                <div class="flex flex-col md:col-span-2">
+                    <h3 class="font-bold text-lg mb-2 text-gray-700">Informations Entreprise</h3>
+                </div>
+                <div class="flex flex-col">
+                    <label for="companyName" class="mb-2 font-medium text-gray-700">Nom de la société :</label>
+                    <input type="text" id="companyName" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="QRANSPAC">
+                </div>
+                <div class="flex flex-col">
+                    <label for="siret" class="mb-2 font-medium text-gray-700">Numéro SIRET :</label>
+                    <input type="text" id="siret" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="12345678900000">
+                </div>
+                <div class="flex flex-col">
+                    <label for="naf" class="mb-2 font-medium text-gray-700">Code NAF :</label>
+                    <input type="text" id="naf" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="7022Z">
+                </div>
+                <div class="flex flex-col">
+                    <label for="convention" class="mb-2 font-medium text-gray-700">Convention Collective :</label>
+                    <input type="text" id="convention" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="SYNTEC">
+                </div>
+                
+                <!-- Employee Info -->
+                <div class="flex flex-col md:col-span-2 mt-4">
+                    <h3 class="font-bold text-lg mb-2 text-gray-700">Éléments Variables de Paie</h3>
+                </div>
                 <div class="flex flex-col">
                     <label for="hours" class="mb-2 font-medium text-gray-700">Heures de travail (normales) :</label>
-                    <input type="number" id="hours" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light">
+                    <input type="number" id="hours" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-200-light" value="151.67">
                 </div>
                 <div class="flex flex-col">
                     <label for="hourlyRate" class="mb-2 font-medium text-gray-700">Taux horaire (€) :</label>
@@ -441,7 +509,11 @@
                     payslipData.brut.total -= finalAdditionalElements.deductions.abs_cp;
                 }
                 
-                let basePlafonnee = Math.min(payslipData.brut.total, customRates.PSS_Proratise || PMSS);
+                // PSS Proratisé en fonction des jours de présence
+                const joursPresence = data.jours_presence || 30;
+                const pmssProratise = (data.pmss || PMSS) * (joursPresence / 30);
+                
+                let basePlafonnee = Math.min(payslipData.brut.total, customRates.PSS_Proratise || pmssProratise);
                 let baseDeplafonnee = payslipData.brut.total;
 
                 let baseCSG = payslipData.brut.total * 0.9825;
@@ -452,10 +524,10 @@
                     baseCSG += additionalElements.prevoyance_pat;
                 }
                 
-                const addCotisation = (rubrique, base, rateSal, ratePat) => {
+                const addCotisation = (rubrique, base, rateSal, ratePat, description = '') => {
                     const partSal = base * rateSal;
                     const partPat = base * ratePat;
-                    payslipData.cotisations.push({ rubrique, base, tauxSal: rateSal, partSal, tauxPat: ratePat, partPat });
+                    payslipData.cotisations.push({ rubrique, base, tauxSal: rateSal, partSal, tauxPat: ratePat, partPat, description });
                     payslipData.totalSalarial += partSal;
                     payslipData.totalPatronal += partPat;
                 };
@@ -463,58 +535,51 @@
                 const SMIC_CORRESPONDANT = customRates.SMIC_Proratise || SMIC_BRUT_MONTH;
                 
                 const tauxMaladiePat = payslipData.brut.total > 2.5 * SMIC_CORRESPONDANT ? rates.SS_Maladie_Plein.pat : rates.SS_Maladie_Reduit.pat;
-                addCotisation('Santé - Sécurité sociale - maladie, maternité, invalidité, décès', baseDeplafonnee, rates.SS_Maladie_Reduit.sal, tauxMaladiePat);
+                addCotisation('Santé - Sécurité sociale - maladie, maternité, invalidité, décès', baseDeplafonnee, rates.SS_Maladie_Reduit.sal, tauxMaladiePat, 'Couvre les frais de santé, indemnités journalières et invalidité. Le taux patronal varie selon le salaire brut.');
                 
-                addCotisation('Accidents du travail - maladies professionnelles', baseDeplafonnee, rates.ATMP.sal, rates.ATMP.pat);
+                addCotisation('Accidents du travail - maladies professionnelles', baseDeplafonnee, rates.ATMP.sal, rates.ATMP.pat, 'Financée par l\'employeur, couvre les risques liés au travail. Taux dépendant de l\'activité de l\'entreprise.');
 
-                addCotisation('Retraite - Sécurité Sociale plafonnée', basePlafonnee, rates.SS_Vieillesse_Plafonnee.sal, rates.SS_Vieillesse_Plafonnee.pat);
-                addCotisation('Retraite - Sécurité Sociale déplafonée', baseDeplafonnee, rates.SS_Vieillesse_Deplafonnee.sal, rates.SS_Vieillesse_Deplafonnee.pat);
+                addCotisation('Retraite - Sécurité Sociale plafonnée', basePlafonnee, rates.SS_Vieillesse_Plafonnee.sal, rates.SS_Vieillesse_Plafonnee.pat, 'Financement de la retraite de base, calculée sur la part du salaire jusqu\'au Plafond de la Sécurité Sociale (PSS).');
+                addCotisation('Retraite - Sécurité Sociale déplafonée', baseDeplafonnee, rates.SS_Vieillesse_Deplafonnee.sal, rates.SS_Vieillesse_Deplafonnee.pat, 'Financement de la retraite de base, calculée sur la totalité du salaire brut.');
                 
-                let baseT1 = Math.min(baseDeplafonnee, customRates.PSS_Proratise || PMSS);
-                let baseT2 = Math.max(0, baseDeplafonnee - (customRates.PSS_Proratise || PMSS));
+                let baseT1 = Math.min(baseDeplafonnee, customRates.PSS_Proratise || pmssProratise);
+                let baseT2 = Math.max(0, baseDeplafonnee - (customRates.PSS_Proratise || pmssProratise));
 
-                addCotisation('Retraite - Complémentaire T1 (AGIRC-ARRCO)', baseT1, rates.AGIRC_ARRCO_T1.sal, rates.AGIRC_ARRCO_T1.pat);
-                addCotisation('Retraite - Complémentaire T2 (AGIRC-ARRCO)', baseT2, rates.AGIRC_ARRCO_T2.sal, rates.AGIRC_ARRCO_T2.pat);
-                addCotisation('Retraite - Contribution d\'équilibre général T1 (CEG)', baseT1, rates.AGIRC_ARRCO_CEG.sal, rates.AGIRC_ARRCO_CEG.pat);
-                addCotisation('Retraite - Contribution d\'équilibre général T2 (CEG)', baseT2, rates.AGIRC_ARRCO_CEG.sal, rates.AGIRC_ARRCO_CEG.pat);
+                addCotisation('Retraite - Complémentaire T1 (AGIRC-ARRCO)', baseT1, rates.AGIRC_ARRCO_T1.sal, rates.AGIRC_ARRCO_T1.pat, 'Retraite complémentaire sur la part du salaire jusqu\'au PSS.');
+                addCotisation('Retraite - Complémentaire T2 (AGIRC-ARRCO)', baseT2, rates.AGIRC_ARRCO_T2.sal, rates.AGIRC_ARRCO_T2.pat, 'Retraite complémentaire sur la part du salaire au-delà du PSS.');
+                addCotisation('Retraite - Contribution d\'équilibre général T1 (CEG)', baseT1, rates.AGIRC_ARRCO_CEG.sal, rates.AGIRC_ARRCO_CEG.pat, 'Contribution pour l\'équilibre du régime de retraite complémentaire, sur la tranche 1.');
+                addCotisation('Retraite - Contribution d\'équilibre général T2 (CEG)', baseT2, rates.AGIRC_ARRCO_CEG.sal, rates.AGIRC_ARRCO_CEG.pat, 'Contribution pour l\'équilibre du régime de retraite complémentaire, sur la tranche 2.');
                 
-                if (baseDeplafonnee > (customRates.PSS_Proratise || PMSS)) {
-                    addCotisation('Retraite - Contribution d\'équilibre technique (CET)', baseDeplafonnee, rates.AGIRC_ARRCO_CET.sal, rates.AGIRC_ARRCO_CET.pat);
+                if (baseDeplafonnee > (customRates.PSS_Proratise || pmssProratise)) {
+                    addCotisation('Retraite - Contribution d\'équilibre technique (CET)', baseDeplafonnee, rates.AGIRC_ARRCO_CET.sal, rates.AGIRC_ARRCO_CET.pat, 'Contribution d\'équilibre technique si le salaire dépasse le PSS.');
                 }
                 
                 if (status === 'cadre') {
-                    addCotisation('Retraite - APEC', baseDeplafonnee, rates.APEC.sal, rates.APEC.pat);
+                    addCotisation('Retraite - APEC', baseDeplafonnee, rates.APEC.sal, rates.APEC.pat, 'Cotisation spécifique pour l\'Association Pour l\'Emploi des Cadres.');
                 }
                 
                 const tauxAFPat = payslipData.brut.total > 3.5 * SMIC_CORRESPONDANT ? rates.Allocations_Familiales_Plein.pat : rates.Allocations_Familiales_Reduit.pat;
-                addCotisation('Allocations familiales', baseDeplafonnee, rates.Allocations_Familiales_Reduit.sal, tauxAFPat);
+                addCotisation('Allocations familiales', baseDeplafonnee, rates.Allocations_Familiales_Reduit.sal, tauxAFPat, 'Finance les prestations familiales. Le taux patronal varie selon le salaire brut.');
                 
-                addCotisation('Assurance chômage', baseDeplafonnee, rates.Assurance_Chomage.sal, rates.Assurance_Chomage.pat);
-                addCotisation('AGS', baseDeplafonnee, rates.AGS.sal, rates.AGS.pat);
+                addCotisation('Assurance chômage', baseDeplafonnee, rates.Assurance_Chomage.sal, rates.Assurance_Chomage.pat, 'Finance les allocations de chômage.');
+                addCotisation('AGS', baseDeplafonnee, rates.AGS.sal, rates.AGS.pat, 'Fonds de garantie des salaires, pour les employeurs en difficulté.');
 
                 const csg_deductible = baseCSG * 0.068;
                 const csg_nondeductible = baseCSG * 0.024;
                 const crds_nondeductible = baseCSG * 0.005;
 
-                payslipData.cotisations.push({ rubrique: 'CSG déductible de l\'impôt sur le revenu', base: baseCSG, tauxSal: 0.068, partSal: csg_deductible, tauxPat: 0, partPat: 0 });
-                payslipData.cotisations.push({ rubrique: 'CSG/CRDS non déductible de l\'impôt sur le revenu', base: baseCSG, tauxSal: 0.024 + 0.005, partSal: csg_nondeductible + crds_nondeductible, tauxPat: 0, partPat: 0 });
-
-                // Net avant impôts
+                payslipData.cotisations.push({ rubrique: 'CSG déductible de l\'impôt sur le revenu', base: baseCSG, tauxSal: 0.068, partSal: csg_deductible, tauxPat: 0, partPat: 0, description: 'Part de la CSG qui peut être déduite du revenu imposable. Finance la solidarité.' });
+                payslipData.cotisations.push({ rubrique: 'CSG/CRDS non déductible de l\'impôt sur le revenu', base: baseCSG, tauxSal: 0.024 + 0.005, partSal: csg_nondeductible + crds_nondeductible, tauxPat: 0, partPat: 0, description: 'Part de la CSG/CRDS qui n\'est pas déductible du revenu imposable.' });
+                
                 const netAvantImpots = payslipData.brut.total - payslipData.totalSalarial;
-
-                // Net social
                 let totalSocial = payslipData.totalSalarial - csg_deductible;
                 const netSocial = payslipData.brut.total - totalSocial;
-                
-                // Net imposable
                 let netImposable = netAvantImpots + csg_nondeductible + crds_nondeductible + (additionalElements.mutuelle_pat || 0) + (additionalElements.prevoyance_pat || 0);
 
                 const impots = netImposable * (taxRate / 100);
                 
-                // Net à payer
                 let netAPayer = netAvantImpots - impots - (finalAdditionalElements.deductions.saisie_salaire || 0) - (finalAdditionalElements.deductions.versement_acompte || 0) + (finalAdditionalElements.indemnite_kilométrique || 0) + (finalAdditionalElements.reimbursement || 0);
                 
-                // Total versé par l'employeur
                 const totalVerse = payslipData.brut.total + payslipData.totalPatronal;
 
                 return {
@@ -579,18 +644,22 @@
                 let cotisationHtml = `<div class="payslip-section">
                     <h3 class="font-bold text-gray-700 mb-2">Cotisations et contributions sociales</h3>
                     <div class="payslip-grid payslip-grid-header border-b border-gray-300 mb-2">
-                        <span>Rubrique</span>
-                        <span class="text-right">Base</span>
-                        <span class="text-right">Taux</span>
-                        <span class="text-right">Part salariale</span>
-                        <span class="text-right">Part patronale</span>
+                        <span class="payslip-title">Rubrique</span>
+                        <span class="payslip-value">Base</span>
+                        <span class="payslip-value">Taux Salarial</span>
+                        <span class="payslip-value">Part Salarié</span>
+                        <span class="payslip-value">Taux Patronal</span>
+                        <span class="payslip-value">Part Employeur</span>
                     </div>
                     <div class="space-y-1">
                 `;
                 data.cotisations.forEach(coti => {
                     cotisationHtml += `
                         <div class="payslip-grid payslip-grid-item">
-                            <span class="payslip-title">${coti.rubrique}</span>
+                            <span class="payslip-title info-container">${coti.rubrique}
+                                <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                <div class="info-tooltip">${coti.description}</div>
+                            </span>
                             <span class="payslip-value">${formatEuro(coti.base)}</span>
                             <span class="payslip-value">${coti.tauxSal ? formatPercent(coti.tauxSal) : '-'}</span>
                             <span class="payslip-value">${formatEuro(coti.partSal)}</span>
@@ -678,8 +747,9 @@
                 const status = document.getElementById('status').value;
                 const daysPresent = parseFloat(document.getElementById('days_present').value);
                 const pmssValue = parseFloat(document.getElementById('pmss').value);
+                const pmssProrataInput = parseFloat(document.getElementById('pmss_prorata').value);
                 
-                const pmssProratise = daysPresent < 30 ? pmssValue * (daysPresent / 30) : pmssValue;
+                const pmssProratise = pmssProrataInput > 0 ? pmssProrataInput : (daysPresent < 30 ? pmssValue * (daysPresent / 30) : pmssValue);
 
                 const data = {
                     hours: hours,
@@ -708,10 +778,10 @@
                         versement_acompte: acompte
                     },
                     entreprise: {
-                         name: "QRANSPAC",
-                         siret: "12345678900000",
-                         naf: "7022Z",
-                         convention: "SYNTEC"
+                         name: document.getElementById('companyName').value,
+                         siret: document.getElementById('siret').value,
+                         naf: document.getElementById('naf').value,
+                         convention: document.getElementById('convention').value
                     }
                 };
                 const payslipData = calculatePayslip(data);
@@ -753,6 +823,8 @@
                                 overtimeHours: 5,
                                 taxRate: 13.50,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.018,
                                     VM_Pat: 0.02,
@@ -761,7 +833,22 @@
                                     Prevoyance_Cadre_TB_Pat: 0.01,
                                     Mutuelle_Sal: 0.01,
                                     Mutuelle_Pat: 0.01,
-                                    overtimeRate: 25
+                                    overtimeRate: 25,
+                                    PSS_Proratise: 3925.00
+                                },
+                                additionalElements: {
+                                    primes: 0,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    }
                                 },
                                 entreprise: { name: "QRANSPAC", siret: "12345678900000", naf: "7022Z", convention: "SYNTEC" }
                             };
@@ -829,6 +916,8 @@
                                 overtimeHours: 0,
                                 taxRate: 4.05,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.018,
                                     VM_Pat: 0.02,
@@ -839,7 +928,22 @@
                                     Prevoyance_Cadre_TB_Pat: 0.01,
                                     Mutuelle_Sal: 0.01,
                                     Mutuelle_Pat: 0.01,
-                                    overtimeRate: 25
+                                    overtimeRate: 25,
+                                    PSS_Proratise: 3925.00
+                                },
+                                additionalElements: {
+                                    primes: 0,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    }
                                 },
                                 entreprise: { name: "QRANSPAC", siret: "12345678900000", naf: "7022Z", convention: "SYNTEC" }
                             };
@@ -902,6 +1006,8 @@
                                 overtimeHours: 0,
                                 taxRate: 4.5,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.0065,
@@ -912,10 +1018,21 @@
                                     overtimeRate: 25,
                                     Prevoyance_NonCadre_Sal: 0.005,
                                     Prevoyance_NonCadre_Pat: 0.015,
+                                    PSS_Proratise: 3925.00
                                 },
                                 additionalElements: {
+                                    primes: 0,
+                                    avantage_en_nature: 0,
                                     indemnite_kilométrique: 243.95,
-                                    versement_acompte: 200
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 200
+                                    }
                                 },
                                 entreprise: { name: "ENTREPRISE (85 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
                             };
@@ -958,6 +1075,8 @@
                                 overtimeHours: 15,
                                 taxRate: 4.5,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.0,
@@ -968,9 +1087,21 @@
                                     overtimeRate: 25,
                                     Prevoyance_NonCadre_Sal: 0.005,
                                     Prevoyance_NonCadre_Pat: 0.015,
+                                    PSS_Proratise: 3925.00
                                 },
                                 additionalElements: {
-                                    saisie_salaire: 295.43
+                                    primes: 0,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 295.43,
+                                        versement_acompte: 0
+                                    }
                                 },
                                 entreprise: { name: "ENTREPRISE (6 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
                             };
@@ -1012,6 +1143,8 @@
                                 overtimeHours: 15,
                                 taxRate: 8,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.02,
@@ -1021,10 +1154,22 @@
                                     Mutuelle_Sal: 0.0,
                                     Mutuelle_Pat: 0.0,
                                     overtimeRate: 25,
-                                    eligibleTEPA: true
+                                    eligibleTEPA: true,
+                                    PSS_Proratise: 3925.00
                                 },
                                 additionalElements: {
+                                    primes: 0,
                                     avantage_en_nature: 175,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    },
                                     mutuelle_sal: 40,
                                     mutuelle_pat: 60,
                                     forfaitSocialBase: 60,
@@ -1072,6 +1217,8 @@
                                 overtimeHours: 8,
                                 taxRate: 4,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.0065,
@@ -1082,6 +1229,21 @@
                                     overtimeRate: 10,
                                     Prevoyance_NonCadre_Sal: 0.005,
                                     Prevoyance_NonCadre_Pat: 0.015,
+                                    PSS_Proratise: 3925.00
+                                },
+                                additionalElements: {
+                                    primes: 0,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 8,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    }
                                 },
                                 entreprise: { name: "ENTREPRISE (11 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
                             };
@@ -1115,6 +1277,8 @@
                                 overtimeHours: 0,
                                 taxRate: 4,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.015,
                                     VM_Pat: 0.02,
@@ -1127,8 +1291,18 @@
                                     SMIC_Proratise: 1351.40,
                                 },
                                 additionalElements: {
+                                    primes: 0,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
                                     heures_comp_10: 6.2,
-                                    heures_comp_25: 1.3
+                                    heures_comp_25: 1.3,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    }
                                 },
                                 entreprise: { name: "ENTREPRISE (22 salariés)", siret: "XXXX", naf: "XXXX", convention: "XXXX" }
                             };
@@ -1164,6 +1338,8 @@
                                 overtimeHours: 0,
                                 taxRate: 9,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.0,
@@ -1172,8 +1348,21 @@
                                     Prevoyance_Cadre_TB_Pat: 0.015,
                                     Mutuelle_Sal: 0.0,
                                     Mutuelle_Pat: 0.0,
+                                    PSS_Proratise: 3925.00
                                 },
                                 additionalElements: {
+                                    primes: 0,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    },
                                     mutuelle_sal: 40,
                                     mutuelle_pat: 60,
                                     prevoyance_cadre_pat: 57.96,
@@ -1215,6 +1404,8 @@
                                 overtimeHours: 0,
                                 taxRate: 8,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.0,
@@ -1226,6 +1417,17 @@
                                 },
                                 additionalElements: {
                                     primes: 300,
+                                    avantage_en_nature: 0,
+                                    indemnite_kilométrique: 0,
+                                    heures_comp_10: 0,
+                                    heures_comp_25: 0,
+                                    deductions: {
+                                        abs_sans_solde: 0,
+                                        abs_maladie: 0,
+                                        abs_cp: 0,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
+                                    },
                                     mutuelle_sal: 40,
                                     mutuelle_pat: 60,
                                     prevoyance_cadre_pat: 54,
@@ -1271,6 +1473,8 @@
                                 overtimeHours: 0,
                                 taxRate: 5,
                                 status: status,
+                                jours_presence: 30,
+                                pmss: 3925.00,
                                 customRates: {
                                     ATMP_Pat: 0.02,
                                     VM_Pat: 0.015,
@@ -1282,16 +1486,17 @@
                                     SMIC_Proratise: 920.20
                                 },
                                 additionalElements: {
+                                    primes: 0,
                                     avantage_en_nature: 32.10,
-                                    remboursement_frais_pro: 100,
-                                    indemnite_cp: 327.60,
-                                    complement_employeur: 273,
+                                    indemnite_kilométrique: 100,
                                     heures_comp_10: 2.1,
                                     heures_comp_25: 1.9,
                                     deductions: {
                                         abs_sans_solde: 273,
                                         abs_maladie: 273,
-                                        abs_cp: 315
+                                        abs_cp: 315,
+                                        saisie_salaire: 0,
+                                        versement_acompte: 0
                                     },
                                     mutuelle_sal: 30,
                                     mutuelle_pat: 40,
@@ -1342,6 +1547,8 @@
                 overtimeHours: 0,
                 taxRate: 4.05,
                 status: 'non-cadre',
+                jours_presence: 30,
+                pmss: 3925.00,
                 customRates: {
                     ATMP_Pat: 0.018,
                     VM_Pat: 0.02,
@@ -1352,7 +1559,22 @@
                     Prevoyance_Cadre_TB_Pat: 0.01,
                     Mutuelle_Sal: 0.01,
                     Mutuelle_Pat: 0.01,
-                    overtimeRate: 25
+                    overtimeRate: 25,
+                    PSS_Proratise: 3925.00
+                },
+                additionalElements: {
+                    primes: 0,
+                    avantage_en_nature: 0,
+                    indemnite_kilométrique: 0,
+                    heures_comp_10: 0,
+                    heures_comp_25: 0,
+                    deductions: {
+                        abs_sans_solde: 0,
+                        abs_maladie: 0,
+                        abs_cp: 0,
+                        saisie_salaire: 0,
+                        versement_acompte: 0
+                    }
                 },
                 entreprise: {
                      name: "QRANSPAC",
